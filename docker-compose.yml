@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  nids-api:
+    build: .
+    container_name: nids-api
+    ports:
+      - "8000:8000"
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - DATABASE_URL=sqlite:///./nids.db
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./nids.db:/app/nids.db
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    restart: unless-stopped
+
+  nids-dashboard:
+    build: .
+    container_name: nids-dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      - API_BASE_URL=http://nids-api:8000/api/v1
+    depends_on:
+      - nids-api
+    command: streamlit run dashboard/app.py --server.address 0.0.0.0 --server.port 8501
+    restart: unless-stopped
