@@ -1,118 +1,128 @@
 import os
 import sys
-import pandas as pd
-import numpy as np
-import requests
-import zipfile
+import glob
 import logging
-from io import BytesIO
+import pandas as pd
+from huggingface_hub import snapshot_download
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-URL = "https://cicresearch.ca/CICDataset/CIC-IDS-2017/Dataset/MachineLearningCSV.zip"
-TARGET_DIR = "data/raw"
-OUTPUT_FILE = "dataset.csv"
+REPO_ID = "c01dsnap/CIC-IDS2017"
+RAW_DIR = "data/raw/cicids2017"
+OUTPUT_FILE = "data/raw/dataset.csv"
 
-def generate_synthetic_data(num_samples=10000):
-    """Fallback method if download fails to allow pipeline development."""
-    logging.warning("Generating synthetic data as fallback...")
-    
-    columns = [
-        "Destination Port", "Flow Duration", "Total Fwd Packets", 
-        "Total Backward Packets", "Total Length of Fwd Packets", 
-        "Total Length of Bwd Packets", "Fwd Packet Length Max", 
-        "Fwd Packet Length Min", "Fwd Packet Length Mean", 
-        "Fwd Packet Length Std", "Bwd Packet Length Max", 
-        "Bwd Packet Length Min", "Bwd Packet Length Mean", 
-        "Bwd Packet Length Std", "Flow Bytes/s", "Flow Packets/s", 
-        "Flow IAT Mean", "Flow IAT Std", "Flow IAT Max", "Flow IAT Min",
-        "Fwd IAT Total", "Fwd IAT Mean", "Fwd IAT Std", "Fwd IAT Max", 
-        "Fwd IAT Min", "Bwd IAT Total", "Bwd IAT Mean", "Bwd IAT Std", 
-        "Bwd IAT Max", "Bwd IAT Min", "Fwd PSH Flags", "Bwd PSH Flags", 
-        "Fwd URG Flags", "Bwd URG Flags", "Fwd Header Length", 
-        "Bwd Header Length", "Fwd Packets/s", "Bwd Packets/s", 
-        "Min Packet Length", "Max Packet Length", "Packet Length Mean", 
-        "Packet Length Std", "Packet Length Variance", "FIN Flag Count", 
-        "SYN Flag Count", "RST Flag Count", "PSH Flag Count", 
-        "ACK Flag Count", "URG Flag Count", "CWE Flag Count", 
-        "ECE Flag Count", "Down/Up Ratio", "Average Packet Size", 
-        "Avg Fwd Segment Size", "Avg Bwd Segment Size", 
-        "Fwd Header Length.1", "Fwd Avg Bytes/Bulk", "Fwd Avg Packets/Bulk", 
-        "Fwd Avg Bulk Rate", "Bwd Avg Bytes/Bulk", "Bwd Avg Packets/Bulk", 
-        "Bwd Avg Bulk Rate", "Subflow Fwd Packets", "Subflow Fwd Bytes", 
-        "Subflow Bwd Packets", "Subflow Bwd Bytes", "Init_Win_bytes_forward", 
-        "Init_Win_bytes_backward", "act_data_pkt_fwd", "min_seg_size_forward", 
-        "Active Mean", "Active Std", "Active Max", "Active Min", 
-        "Idle Mean", "Idle Std", "Idle Max", "Idle Min", "Label"
-    ]
-    
-    np.random.seed(42)
-    df = pd.DataFrame(np.random.randn(num_samples, len(columns) - 1), columns=columns[:-1])
-    
-    # Introduce some realistic ranges
-    df["Destination Port"] = np.random.choice([80, 443, 22, 53, 8080], size=num_samples)
-    df["Flow Duration"] = np.random.randint(100, 10000000, size=num_samples)
-    
-    labels = ["BENIGN"] * int(num_samples * 0.8) + ["DoS Hulk"] * int(num_samples * 0.1) + ["PortScan"] * int(num_samples * 0.05) + ["DDoS"] * int(num_samples * 0.05)
-    df["Label"] = labels
-    
-    # Create some missing and inf values to test preprocessing
-    df.loc[10:20, "Flow Bytes/s"] = np.nan
-    df.loc[30:40, "Flow Packets/s"] = np.inf
-    
-    return df
-
-def fetch_data(synthetic=False):
-    os.makedirs(TARGET_DIR, exist_ok=True)
-    target_path = os.path.join(TARGET_DIR, OUTPUT_FILE)
-    
-    if synthetic:
-        logging.info("Explicitly generating synthetic data for development/testing...")
-        df = generate_synthetic_data()
-        df.to_csv(target_path, index=False)
-        logging.info(f"Saved synthetic dataset to {target_path}")
-        return
-        
+def fetch_and_merge():
+    # 1. Download from Hugging Face
+    logging.info(f"Downloading CIC-IDS2017 CSVs from Hugging Face ({REPO_ID})...")
     try:
-        logging.info(f"Attempting to download dataset from {URL}...")
-        response = requests.get(URL, stream=True, timeout=10)
-        response.raise_for_status()
-        
-        logging.info("Download successful. Extracting...")
-        with zipfile.ZipFile(BytesIO(response.content)) as z:
-            csv_files = [f for f in z.namelist() if f.endswith('.csv')]
-            if not csv_files:
-                raise ValueError("No CSV files found in the archive.")
-            
-            target_csv = csv_files[0]
-            for f in csv_files:
-                if "DDos" in f or "PortScan" in f:
-                    target_csv = f
-                    break
-                    
-            logging.info(f"Extracting {target_csv}...")
-            with z.open(target_csv) as f_in:
-                df = pd.read_csv(f_in, encoding="cp1252")
-                
-            logging.info(f"Loaded dataframe of shape {df.shape}")
-            df.columns = df.columns.str.strip()
-            
-            if len(df) > 50000:
-                logging.info("Sampling 50,000 rows for rapid development...")
-                df = df.sample(n=50000, random_state=42, weights=df.groupby('Label')['Label'].transform('count'))
-                
-            df.to_csv(target_path, index=False)
-            logging.info(f"Saved to {target_path}")
-            
+        snapshot_download(
+            repo_id=REPO_ID,
+            repo_type="dataset",
+            allow_patterns="*.csv",
+            local_dir=RAW_DIR,
+            local_dir_use_symlinks=False
+        )
     except Exception as e:
-        logging.error(f"Failed to fetch real data: {e}")
-        logging.error("ERROR: Silent synthetic fallback is disabled. Please ensure the dataset is accessible, or use --synthetic for development.")
+        logging.error(f"Download failed: {e}")
+        logging.error("ERROR: Failed to download the required dataset files. Cannot proceed.")
         sys.exit(1)
 
-if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(description="Fetch or generate NIDS dataset")
-    parser.add_argument("--synthetic", action="store_true", help="Generate synthetic data for testing instead of downloading")
-    args = parser.parse_args()
+    # 2. Find CSVs
+    csv_files = glob.glob(os.path.join(RAW_DIR, "*.csv"))
+    if not csv_files:
+        logging.error(f"No CSV files found in {RAW_DIR}")
+        sys.exit(1)
+
+    logging.info(f"Found {len(csv_files)} source files. Processing...")
+
+    all_dfs = []
+    base_columns = None
     
-    fetch_data(synthetic=args.synthetic)
+    total_rows = 0
+
+    # 3. Process each CSV
+    for filepath in csv_files:
+        filename = os.path.basename(filepath)
+        logging.info(f"Loading {filename}...")
+        
+        # Read the CSV (encoding handles some weird characters in CIC-IDS2017)
+        try:
+            df = pd.read_csv(filepath, encoding="cp1252", low_memory=False)
+        except Exception as e:
+            logging.error(f"Failed to read {filename}: {e}")
+            sys.exit(1)
+            
+        rows_before = len(df)
+        
+        # Clean column names (strip whitespace)
+        df.columns = df.columns.str.strip()
+        
+        # Validate schema compatibility
+        if base_columns is None:
+            base_columns = list(df.columns)
+            logging.info(f"Base schema established with {len(base_columns)} columns.")
+        else:
+            if list(df.columns) != base_columns:
+                logging.error(f"Schema mismatch in {filename}!")
+                logging.error(f"Expected: {base_columns}")
+                logging.error(f"Found: {list(df.columns)}")
+                sys.exit(1)
+                
+        # Remove embedded repeated headers
+        # CIC-IDS2017 sometimes concatenates files poorly, leaving "Destination Port" in the data rows.
+        df = df[df['Destination Port'] != 'Destination Port']
+        
+        # Parse Timestamp
+        if 'Timestamp' in df.columns:
+            df['Timestamp'] = pd.to_datetime(df['Timestamp'], format="mixed", errors="coerce")
+        else:
+            logging.error(f"'Timestamp' column missing in {filename}!")
+            sys.exit(1)
+            
+        if 'Label' not in df.columns:
+            logging.error(f"'Label' column missing in {filename}!")
+            sys.exit(1)
+            
+        rows_after = len(df)
+        total_rows += rows_after
+        logging.info(f"  -> Rows: {rows_before} (Cleaned: {rows_after})")
+        
+        all_dfs.append(df)
+
+    # 4. Merge all dataframes
+    logging.info("Concatenating all flow files...")
+    merged_df = pd.concat(all_dfs, ignore_index=True)
+    
+    # 5. Sort chronologically
+    logging.info("Sorting merged dataset chronologically by Timestamp...")
+    merged_df = merged_df.sort_values(by="Timestamp").reset_index(drop=True)
+    
+    # 6. Save to CSV
+    logging.info(f"Saving merged dataset to {OUTPUT_FILE}...")
+    merged_df.to_csv(OUTPUT_FILE, index=False)
+    
+    # 7. Print EDA Metrics
+    logging.info("=========================================")
+    logging.info("      DATASET INGESTION COMPLETE         ")
+    logging.info("=========================================")
+    logging.info(f"Source Files Processed: {len(csv_files)}")
+    logging.info(f"Total Rows:             {len(merged_df):,}")
+    
+    ts_min = merged_df['Timestamp'].min()
+    ts_max = merged_df['Timestamp'].max()
+    logging.info(f"Timestamp Range:        {ts_min} to {ts_max}")
+    
+    duplicates = merged_df.duplicated().sum()
+    logging.info(f"Exact Duplicate Rows:   {duplicates:,}")
+    
+    missing_vals = merged_df.isna().sum().sum()
+    logging.info(f"Total Missing Values:   {missing_vals:,}")
+    
+    logging.info("--- Class Distribution ---")
+    dist = merged_df['Label'].value_counts()
+    for label, count in dist.items():
+        logging.info(f"  {label:<25}: {count:,}")
+    logging.info("=========================================")
+
+if __name__ == "__main__":
+    fetch_and_merge()
