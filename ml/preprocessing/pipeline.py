@@ -12,12 +12,15 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 class NIDSPreprocessor:
-    def __init__(self, target_col='Label'):
+    def __init__(self, target_col='Label', drop_dest_port=False):
         self.target_col = target_col
+        self.drop_dest_port = drop_dest_port
         self.pipeline = None
         self.features = None
         # CIC-IDS2017 typically contains these leaky/metadata columns if they exist
-        self.leakage_cols = ['Flow ID', 'Source IP', 'Destination IP', 'Timestamp', 'SimillarHTTP', 'Destination Port']
+        self.leakage_cols = ['Flow ID', 'Source IP', 'Destination IP', 'Timestamp', 'SimillarHTTP']
+        if self.drop_dest_port:
+            self.leakage_cols.append('Destination Port')
         
     def load_data(self, filepath):
         if not os.path.exists(filepath):
@@ -104,19 +107,20 @@ class NIDSPreprocessor:
         
 def prepare_data(df, target_col='Label', holdout_attack=None, test_size=0.15, val_size=0.15):
     """
-    Chronologically split the raw dataframe into train, val, test.
-    Optionally hold out a specific attack class entirely for the test set.
+    Perform a Stratified Random Split of the feature dataset into train, val, test.
+    Drops exact duplicates globally prior to splitting to prevent train/test crossover.
+    Optionally holds out a specific attack class entirely for the test set.
     """
-    if 'Timestamp' in df.columns:
-        # Sort chronologically to prevent scenario/session crossover
-        logging.info("Sorting data chronologically by Timestamp for sequential split.")
-        try:
-            df['Timestamp'] = pd.to_datetime(df['Timestamp'], format="mixed")
-        except:
-            # Fallback for weird formats
-            df['Timestamp'] = pd.to_datetime(df['Timestamp'], errors='coerce')
-        df = df.sort_values(by='Timestamp').reset_index(drop=True)
+    logging.info(f"Initial dataset shape: {df.shape}")
+    
+    # 1. Global Exact Duplicate Removal
+    dups = df.duplicated().sum()
+    if dups > 0:
+        logging.info(f"Dropping {dups} exact duplicate rows to prevent train/test leakage...")
+        df = df.drop_duplicates().reset_index(drop=True)
+        logging.info(f"New dataset shape: {df.shape}")
         
+    # 2. Holdout Attack Extraction
     if holdout_attack:
         logging.info(f"Holding out attack '{holdout_attack}' for unseen-attack evaluation.")
         df_holdout = df[df[target_col] == holdout_attack]
@@ -128,23 +132,21 @@ def prepare_data(df, target_col='Label', holdout_attack=None, test_size=0.15, va
     y = df_train_val_test[target_col]
     X = df_train_val_test.drop(columns=[target_col])
     
-    # Sequential Split (Train / Val / Test)
-    n_total = len(X)
-    n_test = int(n_total * test_size)
-    n_val = int(n_total * val_size)
-    n_train = n_total - n_test - n_val
+    # 3. Stratified Split (Train / Val / Test)
+    # First split off the test set
+    val_test_ratio = val_size + test_size
+    test_ratio_of_valtest = test_size / val_test_ratio
     
-    # Slice the dataframe sequentially
-    X_train = X.iloc[:n_train]
-    y_train = y.iloc[:n_train]
+    X_train, X_temp, y_train, y_temp = train_test_split(
+        X, y, test_size=val_test_ratio, stratify=y, random_state=42
+    )
     
-    X_val = X.iloc[n_train:n_train+n_val]
-    y_val = y.iloc[n_train:n_train+n_val]
+    # Then split val and test
+    X_val, X_test, y_val, y_test = train_test_split(
+        X_temp, y_temp, test_size=test_ratio_of_valtest, stratify=y_temp, random_state=42
+    )
     
-    X_test = X.iloc[n_train+n_val:]
-    y_test = y.iloc[n_train+n_val:]
-    
-    # Append holdout back to the test set
+    # 4. Append holdout back to the test set
     if not df_holdout.empty:
         X_test = pd.concat([X_test, df_holdout.drop(columns=[target_col])])
         y_test = pd.concat([y_test, df_holdout[target_col]])

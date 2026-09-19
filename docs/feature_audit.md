@@ -9,14 +9,16 @@ A model suffering from data leakage will achieve 99.9% accuracy during testing b
 
 To guarantee scientific validity and real-world generalizability, the following features have been intentionally excluded from the model pipeline during the preprocessing stage:
 
-| Feature | Reason for Exclusion |
-|---------|----------------------|
-| **Source IP** | The model would memorize attacker IPs from the lab environment, making it useless against real attackers using different IPs. |
-| **Destination IP** | The model would learn the internal topology of the test network (e.g., "traffic to 192.168.10.50 is always an attack"). |
+| **Source IP & Dest IP** | Prevent the model from learning internal network topology and lab-specific IP configurations. |
 | **Flow ID** | A unique identifier providing no behavioral value; highly correlated with specific session runs. |
-| **Timestamp** | The dataset was generated during specific hours. The model might learn that "attacks happen at 10:00 AM on Wednesday" rather than learning packet signatures. |
-| **SimillarHTTP** | A heavily biased metadata string that often uniquely identifies the script used to launch the attack in the lab environment. |
-| **Destination Port** | *(Dropping based on SOC audit consensus)* While some researchers keep port numbers, dropping it forces the model to learn the *behavior* of an attack (e.g., packet rate, size variance) rather than simply memorizing protocol conventions (e.g., "if Port = 22, it's brute force"). This prevents attackers from evading detection simply by running their exploit on a non-standard port. |
+| **Timestamp** | The Hugging Face `c01dsnap/CIC-IDS2017` feature dataset entirely omits this column. Even if present, it is dropped to prevent the model from learning temporal lab shortcuts (e.g., "attacks only happen on Wednesday mornings"). |
+| **SimillarHTTP** | A heavily biased metadata string that often uniquely identifies the specific attack script used in the lab. |
+| **Destination Port** | *Configurable.* Default behavior retains it, but an explicit ablation experiment (`scripts/ablation_dest_port.py`) is provided to test the model's reliance on port numbers versus actual traffic behavior. |
+
+## Exact Duplicate Policy
+
+Due to the absence of the 5-tuple (IPs, Ports, Protocol) and `Timestamp` in the Hugging Face CSV mirror, short identical flows (like DNS or repeated TCP handshakes) present as mathematically exact duplicate rows.
+**Policy:** Out of 2.8M rows, approximately 308k exact duplicates exist. To mathematically guarantee that identical examples never leak across the train/test boundary in a random split, all exact duplicates are globally dropped prior to dataset splitting.
 
 ## Feature Mapping (NFStream to CIC-IDS2017)
 The original dataset was generated using `CICFlowMeter`. Our real-time pipeline uses `NFStream`. 

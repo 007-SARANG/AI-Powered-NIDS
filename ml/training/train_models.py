@@ -13,7 +13,7 @@ from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, classification_report, confusion_matrix
 from sklearn.preprocessing import LabelEncoder
 
-from ml.preprocessing.pipeline import NIDSPreprocessor, split_data
+from ml.preprocessing.pipeline import NIDSPreprocessor, prepare_data
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
@@ -45,7 +45,15 @@ class ModelTrainer:
         
         # Split first
         from ml.preprocessing.pipeline import prepare_data
-        X_train_raw, X_val_raw, X_test_raw, y_train, y_val, y_test = prepare_data(df)
+        
+        holdout_encoded = None
+        if hasattr(self, 'holdout_attack') and self.holdout_attack:
+            try:
+                holdout_encoded = self.le.transform([self.holdout_attack])[0]
+            except ValueError:
+                logging.warning(f"Holdout attack '{self.holdout_attack}' not found in labels.")
+                
+        X_train_raw, X_val_raw, X_test_raw, y_train, y_val, y_test = prepare_data(df, holdout_attack=holdout_encoded)
         
         # Fit on train
         X_train = preprocessor.fit_transform(X_train_raw)
@@ -116,9 +124,9 @@ class ModelTrainer:
         X_train, X_val, X_test, y_train, y_val, y_test = self.load_and_preprocess()
         
         models = {
-            "LogisticRegression": LogisticRegression(max_iter=1000, n_jobs=-1, class_weight='balanced'),
-            "RandomForest": RandomForestClassifier(n_estimators=100, max_depth=15, n_jobs=-1, class_weight='balanced'),
-            "XGBoost": XGBClassifier(n_estimators=100, max_depth=6, learning_rate=0.1, n_jobs=-1)
+            "LogisticRegression": LogisticRegression(max_iter=1000, n_jobs=-1, class_weight='balanced', random_state=42),
+            "RandomForest": RandomForestClassifier(n_estimators=100, max_depth=15, n_jobs=-1, class_weight='balanced', random_state=42),
+            "XGBoost": XGBClassifier(n_estimators=100, max_depth=6, learning_rate=0.1, n_jobs=-1, random_state=42)
         }
         
         for name, model in models.items():
@@ -143,6 +151,15 @@ class ModelTrainer:
             
         logging.info("Training pipeline finished.")
 
+    # Alias for backward compatibility
+    train_all = run_all
+
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Train Classical ML Models")
+    parser.add_argument("--holdout-attack", type=str, default=None, help="Holdout attack class to test unseen attack detection")
+    args = parser.parse_args()
+    
     trainer = ModelTrainer()
+    trainer.holdout_attack = args.holdout_attack
     trainer.run_all()

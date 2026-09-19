@@ -33,7 +33,7 @@ class HybridDetectionEngine:
         input_dim = len(self.preprocessor['features'])
         
         self.autoencoder = Autoencoder(input_dim).to(self.device)
-        self.autoencoder.load_state_dict(torch.load(os.path.join(models_dir, "anomaly", "autoencoder_best.pt"), map_location=self.device))
+        self.autoencoder.load_state_dict(torch.load(os.path.join(models_dir, "anomaly", "autoencoder_best.pt"), map_location=self.device, weights_only=True))
         self.autoencoder.eval()
         
     def predict(self, df):

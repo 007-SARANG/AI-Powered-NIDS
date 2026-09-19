@@ -8,6 +8,10 @@ class Settings(BaseSettings):
     # Security
     API_AUTH_TOKEN: str = "your-secure-token-here"
     
+    # Server
+    API_HOST: str = "0.0.0.0"
+    API_PORT: int = 8000
+    
     # Database
     DATABASE_URL: str = "sqlite:///./nids.db"
     

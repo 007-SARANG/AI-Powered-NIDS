@@ -11,9 +11,18 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 
-from ml.preprocessing.pipeline import NIDSPreprocessor, split_data
+from ml.preprocessing.pipeline import NIDSPreprocessor, prepare_data
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
+
+SEED = 42
+
+def set_seed(seed=SEED):
+    """Set reproducibility seeds for all backends."""
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
 class Autoencoder(nn.Module):
     def __init__(self, input_dim):
@@ -121,6 +130,7 @@ class AnomalyDetectorTrainer:
         self.benign_idx = benign_idx
         
     def train(self, batch_size=256, epochs=50, lr=0.001, patience=5):
+        set_seed()
         train_loader = DataLoader(self.train_dataset, batch_size=batch_size, shuffle=True)
         # Using subset of val for early stopping (only benign)
         val_loader = DataLoader(self.val_dataset, batch_size=batch_size)
@@ -172,7 +182,7 @@ class AnomalyDetectorTrainer:
                     logging.info("Early stopping triggered")
                     break
                     
-        model.load_state_dict(torch.load(best_model_path))
+        model.load_state_dict(torch.load(best_model_path, weights_only=True))
         self.determine_threshold(model)
         
     def determine_threshold(self, model):

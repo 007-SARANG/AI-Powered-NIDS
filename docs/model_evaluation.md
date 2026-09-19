@@ -1,9 +1,21 @@
 # Model Evaluation & Experiment Tracking
 
-## Methodology
-The dataset was split using a stratified 70/15/15 ratio (Train/Validation/Test). The test set was locked away during hyperparameter tuning and anomaly threshold selection.
+## Dual Evaluation Strategy
 
-## Model Comparison
+This project enforces strict academic rigor by decoupling evaluation into two distinct pipelines based on data availability.
+
+### 1. Feature-Classification Pipeline (Current)
+This evaluation utilizes the Hugging Face `c01dsnap/CIC-IDS2017` feature-only CSV dataset. 
+- **Constraint:** This dataset contains NO `Timestamp` or session identifiers.
+- **Methodology:** Global exact duplicates are dropped. A **Stratified Random Split** (70/15/15) is used.
+- **Limitation:** Makes no claims regarding chronological session boundaries. 
+- **Unseen-Attack Evaluation:** A specific attack (e.g., DoS Hulk) is dropped entirely from Train/Validation sets and appended exclusively to the Test set to test zero-day generalizability.
+
+### 2. Temporal / Scenario-Aware Pipeline (Future / Separate)
+- **Constraint:** Requires raw PCAP processing or the original UNB ZIP that includes Timestamp and Flow IDs.
+- **Methodology:** Sorts chronologically, tracks session boundaries, and guarantees zero temporal crossover.
+
+## Supervised Model Comparison (Feature-Classification)
 
 | Model | F1 Macro (Test) | Precision | Recall | ROC-AUC | Latency (ms) |
 |---|---|---|---|---|---|
@@ -12,30 +24,34 @@ The dataset was split using a stratified 70/15/15 ratio (Train/Validation/Test).
 | XGBoost | *Pending A100 Run* | *Pending* | *Pending* | *Pending* | *Pending* |
 | PyTorch MLP | *Pending A100 Run* | *Pending* | *Pending* | *Pending* | *Pending* |
 
-*Note: Metrics will be populated natively upon execution on the A100 environment using the full 2.5 Million row CIC-IDS2017 dataset.*
+*Note: Metrics will be populated natively upon execution on the A100 environment.*
 
 ## Anomaly Detection (Autoencoder)
-The anomaly threshold is calculated exclusively using the 95th percentile of the validation set's reconstruction error for benign traffic.
+The anomaly threshold is evaluated strictly under the following unseen-attack methodology:
+- **Training:** Trained exclusively on benign training traffic.
+- **Threshold Selection:** Calculated using the 95th percentile of reconstruction error on the benign validation set.
+- **Evaluation (FPR):** False Positive Rate calculated on untouched benign test traffic.
+- **Evaluation (Recall):** Detection rate calculated against the held-out/unseen attack class in the test set.
 
 - **Calculated Threshold**: *Pending A100 Run*
-- **Benign Precision**: *Pending A100 Run*
+- **Benign FPR**: *Pending A100 Run*
 - **Unseen Attack Recall**: *Pending A100 Run*
 
 ## Feature Ablation Study
 
 | Setup | F1 Macro | Minority Recall |
 |---|---|---|
-| A: Raw Features | 0.15 | 0.10 |
-| B: Engineered (Cleaned/Scaled) | 0.18 | 0.15 |
-| C: Engineered + Class Balancing | 0.22 | 0.22 |
-| D: Setup C + Tuned XGBoost | 0.22 | 0.22 |
+| A: Raw Features | *Pending A100 Run* | *Pending* |
+| B: Engineered (Cleaned/Scaled) | *Pending A100 Run* | *Pending* |
+| C: Engineered + Class Balancing | *Pending A100 Run* | *Pending* |
+| D: Setup C + Tuned XGBoost | *Pending A100 Run* | *Pending* |
 
 ## CPU vs A100 GPU Experiment (PyTorch)
 
 | Device | Batch Size | Epoch Time | Total Train Time | Val F1 Macro |
 |---|---|---|---|---|
-| CPU (Local) | 256 | 0.12s | 2.30s | 0.22 |
-| A100 | 256 | [GPU TRAINING TIME] | [TOTAL TIME] | [VAL F1] |
+| CPU (Local) | 256 | *Pending* | *Pending* | *Pending* |
+| A100 | 256 | *Pending* | *Pending* | *Pending* |
 
 ## Explanation of False Positives & Negatives
 In an IDS context:

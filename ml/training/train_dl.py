@@ -10,10 +10,20 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
+import numpy as np
 
-from ml.preprocessing.pipeline import NIDSPreprocessor, split_data
+from ml.preprocessing.pipeline import NIDSPreprocessor, prepare_data
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
+
+SEED = 42
+
+def set_seed(seed=SEED):
+    """Set reproducibility seeds for all backends."""
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
 class NIDS_MLP(nn.Module):
     def __init__(self, input_dim, num_classes, hidden_dims=[256, 128, 64], dropout_rate=0.3):
@@ -69,7 +79,15 @@ class DeepLearningTrainer:
         self.n_classes = len(self.le.classes_)
         
         from ml.preprocessing.pipeline import prepare_data
-        X_train_raw, X_val_raw, X_test_raw, y_train, y_val, y_test = prepare_data(df)
+        
+        holdout_encoded = None
+        if hasattr(self, 'holdout_attack') and self.holdout_attack:
+            try:
+                holdout_encoded = self.le.transform([self.holdout_attack])[0]
+            except ValueError:
+                logging.warning(f"Holdout attack '{self.holdout_attack}' not found in labels.")
+                
+        X_train_raw, X_val_raw, X_test_raw, y_train, y_val, y_test = prepare_data(df, holdout_attack=holdout_encoded)
         
         X_train = preprocessor.fit_transform(X_train_raw)
         X_val = preprocessor.transform(X_val_raw)
@@ -81,6 +99,7 @@ class DeepLearningTrainer:
         self.input_dim = X_train.shape[1]
         
     def train(self, batch_size=256, epochs=50, lr=0.001, patience=5):
+        set_seed()
         train_loader = DataLoader(self.train_dataset, batch_size=batch_size, shuffle=True)
         val_loader = DataLoader(self.val_dataset, batch_size=batch_size)
         
@@ -158,7 +177,7 @@ class DeepLearningTrainer:
         logging.info(f"Training completed in {train_time:.2f}s")
         
         # Evaluate on Test
-        model.load_state_dict(torch.load(best_model_path))
+        model.load_state_dict(torch.load(best_model_path, weights_only=True))
         self.evaluate(model, train_time)
         
     def evaluate(self, model, train_time):
@@ -210,6 +229,12 @@ class DeepLearningTrainer:
             json.dump(metadata, f, indent=4)
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Train Supervised DL Model")
+    parser.add_argument("--holdout-attack", type=str, default=None, help="Holdout attack class to test unseen attack detection")
+    args = parser.parse_args()
+    
     trainer = DeepLearningTrainer()
+    trainer.holdout_attack = args.holdout_attack
     trainer.load_data()
     trainer.train()
