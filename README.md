@@ -4,7 +4,7 @@
 This project is an end-to-end defensive cybersecurity platform designed to monitor network traffic, detect intrusions using machine learning, and provide security operations center (SOC) analysts with actionable, explainable alerts.
 
 ## Motivation (Why Intrusion Detection Matters)
-Modern cyber threats often bypass traditional signature-based firewalls. An AI-powered NIDS leverages behavioral analysis and anomaly detection to catch zero-day attacks, advanced persistent threats (APTs), and sophisticated scanning activities that do not have known signatures.
+Modern cyber threats often bypass traditional signature-based firewalls. An AI-powered NIDS leverages behavioral analysis and anomaly detection to catch unseen attacks, advanced persistent threats (APTs), and sophisticated scanning activities that do not have known signatures.
 
 ## Architecture
 The system consists of:
@@ -12,7 +12,7 @@ The system consists of:
 2. **Preprocessing Pipeline**: Scikit-Learn pipeline for imputation and scaling.
 3. **Detection Engine**: 
    - **XGBoost Classifier**: Supervised model for known threats (DDoS, PortScan, etc.).
-   - **PyTorch Autoencoder**: Unsupervised anomaly detection for zero-day threats.
+   - **PyTorch Autoencoder**: Unsupervised anomaly detection for unseen threats.
 4. **Explainability Module**: SHAP-based TreeExplainer provides human-readable context for ML decisions.
 5. **Backend**: FastAPI providing robust REST endpoints for integration.
 6. **Dashboard**: Streamlit SOC UI for monitoring and investigation.
@@ -32,7 +32,7 @@ The preprocessing handles numeric scaling (StandardScaler), missing value imputa
 ## Hybrid Engine
 The Hybrid Engine combines the Supervised and Unsupervised models.
 - If XGBoost predicts an attack -> High Severity.
-- If XGBoost predicts Benign but Autoencoder flags high reconstruction error -> Unknown Anomaly (Zero-Day).
+- If XGBoost predicts Benign but Autoencoder flags high reconstruction error -> Unknown Anomaly (Unseen Attack).
 - If both agree it's malicious -> Critical Severity.
 
 ## SHAP Explainability

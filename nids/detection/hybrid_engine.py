@@ -66,7 +66,7 @@ class HybridDetectionEngine:
             anomaly_flag = bool(is_anomaly[i])
             
             # Hybrid Decision Logic
-            # If supervised says Benign, but Anomaly says True -> Flag as Zero-Day / Anomaly
+            # If supervised says Benign, but Anomaly says True -> Flag as Unseen Attack / Anomaly
             # If supervised says Attack -> Trust supervised class
             
             final_class = predicted_class

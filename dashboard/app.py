@@ -42,7 +42,7 @@ col1, col2, col3, col4 = st.columns(4)
 col1.metric("Total Traffic Processed", "50,000", "+1,200/hr") # Placeholder for traffic volume
 col2.metric("Total Security Alerts", stats["total_alerts"])
 col3.metric("High/Critical Alerts", stats["high_critical_alerts"])
-col4.metric("Zero-Day Anomalies", stats["anomalies_detected"])
+col4.metric("Unseen Anomalies", stats["anomalies_detected"])
 
 st.markdown("---")
 

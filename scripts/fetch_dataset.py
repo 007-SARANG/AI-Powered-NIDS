@@ -89,12 +89,12 @@ def fetch_and_merge():
         all_dfs.append(df)
 
     # 4. Merge all dataframes
-    logging.info("[3/3] Creating chronological merged dataset...")
+    logging.info("[3/3] Creating merged dataset...")
     merged_df = pd.concat(all_dfs, ignore_index=True)
     
     # 5. Sort chronologically if Timestamp exists
     if 'Timestamp' in merged_df.columns:
-        logging.info("[3/3] Creating chronological merged dataset...")
+        logging.info("[3/3] Creating merged dataset...")
         merged_df = merged_df.sort_values(by="Timestamp").reset_index(drop=True)
     else:
         logging.info("[3/3] Creating merged dataset (Timestamp missing, skipping sort)...")

@@ -9,7 +9,7 @@ This evaluation utilizes the Hugging Face `c01dsnap/CIC-IDS2017` feature-only CS
 - **Constraint:** This dataset contains NO `Timestamp` or session identifiers.
 - **Methodology:** Global exact duplicates are dropped. A **Stratified Random Split** (70/15/15) is used.
 - **Limitation:** Makes no claims regarding chronological session boundaries. 
-- **Unseen-Attack Evaluation:** A specific attack (e.g., DoS Hulk) is dropped entirely from Train/Validation sets and appended exclusively to the Test set to test zero-day generalizability.
+- **Unseen-Attack Evaluation:** A specific attack (e.g., DoS Hulk) is dropped entirely from Train/Validation sets and appended exclusively to the Test set to test unseen-attack generalizability.
 
 ### 2. Temporal / Scenario-Aware Pipeline (Future / Separate)
 - **Constraint:** Requires raw PCAP processing or the original UNB ZIP that includes Timestamp and Flow IDs.

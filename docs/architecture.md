@@ -37,7 +37,7 @@ A Scikit-Learn `ColumnTransformer` that:
 
 ### 3. Machine Learning Core (`nids/detection/hybrid_engine.py`)
 - **Supervised**: XGBoost optimized for high precision on known classes.
-- **Unsupervised**: PyTorch Autoencoder measuring reconstruction error (MSE). High MSE flags zero-day anomalies.
+- **Unsupervised**: PyTorch Autoencoder measuring reconstruction error (MSE). High MSE flags unseen anomalies.
 
 ### 4. API & Database (`app/`)
 - Built with FastAPI for async-capable HTTP routing.
