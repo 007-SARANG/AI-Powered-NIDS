@@ -8,7 +8,7 @@ import numpy as np
 from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score, average_precision_score
 
 from ml.preprocessing.pipeline import NIDSPreprocessor, prepare_data
-from ml.training.train_dl import MLP
+from ml.training.train_dl import NIDS_MLP
 from ml.training.train_anomaly import Autoencoder
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -105,7 +105,7 @@ def audit_results(dataset_path="data/raw/dataset.csv", models_dir="models/"):
     if os.path.exists(mlp_path):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         input_dim = X_test_processed.shape[1]
-        mlp = MLP(input_dim, n_classes).to(device)
+        mlp = NIDS_MLP(input_dim, n_classes).to(device)
         mlp.load_state_dict(torch.load(mlp_path, map_location=device, weights_only=True))
         mlp.eval()
         
