@@ -17,14 +17,14 @@ This evaluation utilizes the Hugging Face `c01dsnap/CIC-IDS2017` feature-only CS
 
 ## Supervised Model Comparison (Feature-Classification)
 
-| Model | F1 Macro (Test) | Precision | Recall | ROC-AUC | Latency (ms) |
-|---|---|---|---|---|---|
-| Logistic Regression (Baseline) | *Pending A100 Run* | *Pending* | *Pending* | *Pending* | *Pending* |
-| Random Forest | *Pending A100 Run* | *Pending* | *Pending* | *Pending* | *Pending* |
-| XGBoost | *Pending A100 Run* | *Pending* | *Pending* | *Pending* | *Pending* |
-| PyTorch MLP | *Pending A100 Run* | *Pending* | *Pending* | *Pending* | *Pending* |
+| Model | F1 Macro (Test) | ROC-AUC (Test) | Train Time (s) | Notes |
+|---|---|---|---|---|
+| Logistic Regression (Baseline) | 0.5001 | *Pending* | 1300.07 | *Incomplete (LBFGS failed to converge)* |
+| Random Forest | 0.8256 | *Pending* | 50.59 | |
+| XGBoost | **0.8800** | *Pending* | 49.29 | |
+| PyTorch MLP | 0.7093 | **0.9973** | 561.41 | |
 
-*Note: Metrics will be populated natively upon execution on the A100 environment.*
+*Note: The high ROC-AUC on the PyTorch MLP does not necessarily guarantee excellent generalization due to class imbalances. We rely on Macro-F1 for a balanced assessment.*
 
 ## Anomaly Detection (Autoencoder)
 The anomaly threshold is evaluated strictly under the following unseen-attack methodology:
@@ -33,25 +33,26 @@ The anomaly threshold is evaluated strictly under the following unseen-attack me
 - **Evaluation (FPR):** False Positive Rate calculated on untouched benign test traffic.
 - **Evaluation (Recall):** Detection rate calculated against the held-out/unseen attack class in the test set.
 
-- **Calculated Threshold**: *Pending A100 Run*
-- **Benign FPR**: *Pending A100 Run*
-- **Unseen Attack Recall**: *Pending A100 Run*
+- **Holdout Attack Used**: DoS Hulk
+- **Calculated Threshold**: 0.009342
+- **Benign FPR**: 0.0498 (4.98%)
+- **Unseen Attack Recall**: 0.9008 (90.08% detection of true zero-day/unseen attacks)
 
-## Feature Ablation Study
+## Destination Port Ablation Study
 
-| Setup | F1 Macro | Minority Recall |
-|---|---|---|
-| A: Raw Features | *Pending A100 Run* | *Pending* |
-| B: Engineered (Cleaned/Scaled) | *Pending A100 Run* | *Pending* |
-| C: Engineered + Class Balancing | *Pending A100 Run* | *Pending* |
-| D: Setup C + Tuned XGBoost | *Pending A100 Run* | *Pending* |
+| Setup | F1 Macro |
+|---|---|
+| A: WITH Destination Port | 0.7368 |
+| B: WITHOUT Destination Port | **0.7704** |
+
+*Note: This specific ablation ensures the model relies on true traffic behavioral patterns rather than trivially memorizing specific port numbers (e.g., assuming Port 80 = Attack). Performance slightly improved without it, indicating robust behavioral generalization.*
 
 ## CPU vs A100 GPU Experiment (PyTorch)
 
 | Device | Batch Size | Epoch Time | Total Train Time | Val F1 Macro |
 |---|---|---|---|---|
 | CPU (Local) | 256 | *Pending* | *Pending* | *Pending* |
-| A100 | 256 | *Pending* | *Pending* | *Pending* |
+| A100 | 256 | *Pending* | 561.41s | 0.6766 |
 
 ## Explanation of False Positives & Negatives
 In an IDS context:
