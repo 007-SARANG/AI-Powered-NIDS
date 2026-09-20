@@ -132,4 +132,30 @@ Because False Negatives are devastating, the hybrid model architecture intention
 - **Held-out DoS Hulk Detection Rate:** 0.9008 (90.08%)
 
 ### 4. PyTorch MLP
-*Model `models/mlp_best.pt` was not present on the server during the audit execution.*
+- **Macro-F1:** 0.7093
+- **Weighted-F1:** 0.9936
+- **ROC-AUC (Macro):** 0.9973
+- **PR-AUC (Macro):** 0.7438
+- **Accuracy:** 0.9941
+- **Test Set N:** 378,355
+
+#### Per-Class Metrics (PyTorch MLP)
+| Class | Support | Precision | Recall | F1 | FPR | FNR |
+|---|---|---|---|---|---|---|
+| BENIGN | 314,473 | 0.9947 | 0.9983 | 0.9965 | 0.026001 | 0.001660 |
+| Bot | 293 | 1.0000 | 0.3652 | 0.5350 | 0.000000 | 0.634812 |
+| DDoS | 19,203 | 0.9986 | 0.9984 | 0.9985 | 0.000075 | 0.001614 |
+| DoS GoldenEye | 1,543 | 0.9804 | 0.9708 | 0.9756 | 0.000080 | 0.029164 |
+| DoS Hulk | 25,928 | 0.9967 | 0.9618 | 0.9789 | 0.000236 | 0.038183 |
+| DoS Slowhttptest | 784 | 0.8790 | 0.9821 | 0.9277 | 0.000281 | 0.017857 |
+| DoS slowloris | 808 | 0.9462 | 0.9790 | 0.9623 | 0.000119 | 0.021040 |
+| FTP-Patator | 890 | 0.9954 | 0.9798 | 0.9875 | 0.000011 | 0.020225 |
+| Heartbleed | 1 | 1.0000 | 1.0000 | 1.0000 | 0.000000 | 0.000000 |
+| Infiltration | 5 | 1.0000 | 0.2000 | 0.3333 | 0.000000 | 0.800000 |
+| PortScan | 13,623 | 0.9804 | 0.9968 | 0.9885 | 0.000743 | 0.003230 |
+| SSH-Patator | 483 | 0.9933 | 0.9213 | 0.9560 | 0.000008 | 0.078675 |
+| Web Attack - Brute Force | 220 | 0.0000 | 0.0000 | 0.0000 | 0.000000 | 1.000000 |
+| Web Attack - Sql Injection | 3 | 0.0000 | 0.0000 | 0.0000 | 0.000000 | 1.000000 |
+| Web Attack - XSS | 98 | 0.0000 | 0.0000 | 0.0000 | 0.000000 | 1.000000 |
+
+*(Note: The MLP completely failed to identify the three Web Attack variants, predicting all 321 samples as BENIGN. This starkly highlights the danger of relying on high Weighted-F1/Accuracy without auditing Macro-F1 across severe class imbalances.)*
