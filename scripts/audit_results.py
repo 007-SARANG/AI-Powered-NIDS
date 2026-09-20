@@ -97,7 +97,7 @@ def audit_results(dataset_path="data/raw/dataset.csv", models_dir="models/"):
         logging.warning("XGBoost model not found.")
         
     # 4. Evaluate PyTorch MLP
-    mlp_path = os.path.join(models_dir, "mlp_best.pt")
+    mlp_path = os.path.join(models_dir, "dl_model", "mlp_best.pt")
     if os.path.exists(mlp_path):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         input_dim = X_test_sup.shape[1]
