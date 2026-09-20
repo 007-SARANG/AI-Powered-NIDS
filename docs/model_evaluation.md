@@ -118,12 +118,18 @@ Because False Negatives are devastating, the hybrid model architecture intention
 
 ### 3. Autoencoder (Unseen-Attack Evaluation)
 - **Threshold (95th percentile benign validation):** 0.009342
-- **Benign Test FPR:** 0.0915 (9.15%)
-- **Held-out DoS Hulk Detection Rate:** 0.9158 (91.58%)
 - **Benign Support:** 314,472
 - **Attack Support (non-benign):** 210,804
 
-*(Note: The discrepancy between earlier self-reported FPR of 4.98% and the strictly audited test FPR of 9.15% confirms the necessity of this strict final-test-set audit).*
+**Evaluation A: Production Reality (Supervised Scaler)**
+*Because the hybrid engine uses the supervised scaler in production to avoid computing two pipelines, the Autoencoder sees a slight distribution shift during inference.*
+- **Benign Test FPR:** 0.0915 (9.15%)
+- **Held-out DoS Hulk Detection Rate:** 0.9158 (91.58%)
+
+**Evaluation B: Training Reality (Isolated Scaler)**
+*The mathematically true isolated test evaluation of the Autoencoder against its own holdout scaler.*
+- **Benign Test FPR:** 0.0493 (4.93%)
+- **Held-out DoS Hulk Detection Rate:** 0.9008 (90.08%)
 
 ### 4. PyTorch MLP
-*Model `models/dl_model/best_mlp.pt` was not present on the server during the audit execution.*
+*Model `models/mlp_best.pt` was not present on the server during the audit execution.*
