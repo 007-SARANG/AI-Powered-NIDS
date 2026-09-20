@@ -97,7 +97,7 @@ def audit_results(dataset_path="data/raw/dataset.csv", models_dir="models/"):
         logging.warning("XGBoost model not found.")
         
     # 4. Evaluate PyTorch MLP
-    mlp_path = os.path.join(models_dir, "dl_model", "best_mlp.pt")
+    mlp_path = os.path.join(models_dir, "mlp_best.pt")
     if os.path.exists(mlp_path):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         input_dim = X_test_sup.shape[1]
@@ -135,12 +135,29 @@ def audit_results(dataset_path="data/raw/dataset.csv", models_dir="models/"):
         ae.load_state_dict(torch.load(ae_path, map_location=device, weights_only=True))
         ae.eval()
         
-        X_tensor = torch.FloatTensor(X_test_unsup).to(device)
+        # We also need to evaluate using the RECONSTRUCTED isolated preprocessor
+        # that was used during training but never saved.
+        logging.info("\n--- Evaluation A: Using saved Supervised Preprocessor (Production Reality) ---")
+        X_tensor_prod = torch.FloatTensor(X_test_unsup).to(device)
         with torch.no_grad():
-            reconstructed = ae(X_tensor)
-            mse = torch.mean((X_tensor - reconstructed) ** 2, dim=1).cpu().numpy()
+            reconstructed_prod = ae(X_tensor_prod)
+            mse_prod = torch.mean((X_tensor_prod - reconstructed_prod) ** 2, dim=1).cpu().numpy()
             
-        y_pred_anomaly = (mse > threshold).astype(int)
+        y_pred_anomaly_prod = (mse_prod > threshold).astype(int)
+        
+        # Reconstruct isolated training preprocessor
+        logging.info("\n--- Evaluation B: Using reconstructed Isolated Preprocessor (Training Reality) ---")
+        X_train_unsup_raw, _, _, _, _, _ = prepare_data(df, holdout_attack="DoS Hulk")
+        isolated_preprocessor = NIDSPreprocessor()
+        isolated_preprocessor.fit_transform(X_train_unsup_raw)
+        X_test_unsup_isolated = isolated_preprocessor.transform(X_test_unsup_raw)
+        
+        X_tensor_iso = torch.FloatTensor(X_test_unsup_isolated).to(device)
+        with torch.no_grad():
+            reconstructed_iso = ae(X_tensor_iso)
+            mse_iso = torch.mean((X_tensor_iso - reconstructed_iso) ** 2, dim=1).cpu().numpy()
+            
+        y_pred_anomaly_iso = (mse_iso > threshold).astype(int)
         
         benign_idx = -1
         for i, c in enumerate(classes):
@@ -149,12 +166,14 @@ def audit_results(dataset_path="data/raw/dataset.csv", models_dir="models/"):
                 break
                 
         if benign_idx != -1:
-            y_true_anomaly = (y_test_unsup_encoded != benign_idx).astype(int)
-            
             benign_mask = (y_test_unsup_encoded == benign_idx)
             benign_support = np.sum(benign_mask)
-            fp = np.sum(y_pred_anomaly[benign_mask] == 1)
-            fpr = fp / benign_support if benign_support > 0 else 0.0
+            
+            fp_prod = np.sum(y_pred_anomaly_prod[benign_mask] == 1)
+            fpr_prod = fp_prod / benign_support if benign_support > 0 else 0.0
+            
+            fp_iso = np.sum(y_pred_anomaly_iso[benign_mask] == 1)
+            fpr_iso = fp_iso / benign_support if benign_support > 0 else 0.0
             
             holdout_idx = -1
             if "DoS Hulk" in classes:
@@ -163,12 +182,15 @@ def audit_results(dataset_path="data/raw/dataset.csv", models_dir="models/"):
             if holdout_idx != -1:
                 holdout_mask = (y_test_unsup_encoded == holdout_idx)
                 holdout_support = np.sum(holdout_mask)
-                holdout_tp = np.sum(y_pred_anomaly[holdout_mask] == 1)
-                holdout_dr = holdout_tp / holdout_support if holdout_support > 0 else 0.0
                 
-                logging.info(f"Benign Test FPR: {fpr:.6f} (Support: {benign_support})")
-                logging.info(f"Held-out DoS Hulk Detection Rate: {holdout_dr:.6f} (Support: {holdout_support})")
-                logging.info(f"Attack Support (Total non-benign): {np.sum(~benign_mask)}")
+                holdout_tp_prod = np.sum(y_pred_anomaly_prod[holdout_mask] == 1)
+                holdout_dr_prod = holdout_tp_prod / holdout_support if holdout_support > 0 else 0.0
+                
+                holdout_tp_iso = np.sum(y_pred_anomaly_iso[holdout_mask] == 1)
+                holdout_dr_iso = holdout_tp_iso / holdout_support if holdout_support > 0 else 0.0
+                
+                logging.info(f"Production (Supervised Scaler) -> Benign Test FPR: {fpr_prod:.6f} | DoS Hulk DR: {holdout_dr_prod:.6f}")
+                logging.info(f"Training (Isolated Scaler)   -> Benign Test FPR: {fpr_iso:.6f} | DoS Hulk DR: {holdout_dr_iso:.6f}")
             else:
                 logging.warning("DoS Hulk class not found.")
         else:

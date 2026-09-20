@@ -100,6 +100,11 @@ class AnomalyDetectorTrainer:
         X_val = preprocessor.transform(X_val_raw)
         X_test = preprocessor.transform(X_test_raw)
         
+        # Save this specific preprocessor so it doesn't overwrite the supervised one
+        anomaly_dir = os.path.join(self.models_dir, "anomaly")
+        os.makedirs(anomaly_dir, exist_ok=True)
+        preprocessor.save(os.path.join(anomaly_dir, "preprocessor.joblib"))
+        
         # y arrays
         y_train = y_train.values
         y_val = y_val.values
