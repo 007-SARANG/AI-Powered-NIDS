@@ -34,11 +34,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Restrict CORS in production, but allow frontend dashboard for now
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Should be restricted to Streamlit IP in prod
-    allow_credentials=True,
+    allow_origins=settings.CORS_ALLOW_ORIGINS,
+    allow_credentials=False,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )

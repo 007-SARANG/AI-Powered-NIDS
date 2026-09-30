@@ -39,7 +39,7 @@ stats = get_stats()
 
 # Metrics Row
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Total Traffic Processed", "50,000", "+1,200/hr") # Placeholder for traffic volume
+col1.metric("Alerts Recorded", stats["total_alerts"])
 col2.metric("Total Security Alerts", stats["total_alerts"])
 col3.metric("High/Critical Alerts", stats["high_critical_alerts"])
 col4.metric("Unseen Anomalies", stats["anomalies_detected"])

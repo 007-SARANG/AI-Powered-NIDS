@@ -23,6 +23,8 @@ The system consists of:
 We utilize the **CIC-IDS2017** dataset, processed locally.
 The preprocessing handles numeric scaling (StandardScaler), missing value imputation, and class imbalance. Explicit data leakage features (like Source/Destination IPs and Timestamps) are completely removed before model training to prevent the model from artificially learning network topology rather than attack behavior.
 
+The dataset is fetched locally and is not committed. Reported experiments in `docs/model_evaluation.md` are recorded project results; rerun the documented workflow on the dataset before treating them as independently reproduced benchmarks. The dashboard reports stored alert counts; it does not currently measure total network traffic volume or alerts per hour.
+
 ## Models
 1. **Baseline**: Logistic Regression
 2. **Ensembles**: Random Forest, XGBoost
@@ -63,6 +65,8 @@ PYTHONPATH=. python ml/training/train_anomaly.py
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
+
+For browser clients on another origin, set `CORS_ALLOW_ORIGINS` to a JSON array of exact trusted origins in `.env` (for example, `["http://localhost:8501"]`). The default allows no cross-origin browser requests. The Streamlit dashboard calls the API server-side and does not need permissive CORS.
 
 **5. Start the Dashboard:**
 ```bash

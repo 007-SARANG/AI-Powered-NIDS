@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     
     # Security
     API_AUTH_TOKEN: str = "your-secure-token-here"
+    CORS_ALLOW_ORIGINS: list[str] = []
     
     # Server
     API_HOST: str = "0.0.0.0"
