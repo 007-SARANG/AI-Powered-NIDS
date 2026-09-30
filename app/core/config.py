@@ -6,7 +6,8 @@ class Settings(BaseSettings):
     API_PREFIX: str = "/api/v1"
     
     # Security
-    API_AUTH_TOKEN: str = "your-secure-token-here"
+    # Admin operations stay unavailable until an operator configures a secret.
+    API_AUTH_TOKEN: str = ""
     CORS_ALLOW_ORIGINS: list[str] = []
     
     # Server
